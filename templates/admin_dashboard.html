@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>룰렛 관리자</title>
+  <style>
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,sans-serif;
+      background:#f8fafc;color:#0f172a;
+    }
+    .wrap{max-width:1260px;margin:0 auto;padding:24px 16px 40px;}
+    .top{
+      display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+      margin-bottom:20px;
+    }
+    h1{margin:0;font-size:30px;letter-spacing:-0.03em;}
+    .sub{color:#475569;margin-top:6px;}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;}
+    .btn, button.btn{
+      display:inline-flex;align-items:center;justify-content:center;padding:12px 14px;
+      border-radius:14px;border:none;text-decoration:none;font-weight:900;cursor:pointer;
+    }
+    .btn-primary{background:#0f172a;color:#fff;}
+    .btn-secondary{background:#e2e8f0;color:#0f172a;}
+    .stats{
+      display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:18px;
+    }
+    .stat{
+      background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:16px;
+      box-shadow:0 8px 24px rgba(15,23,42,.05);
+    }
+    .stat strong{display:block;font-size:13px;color:#64748b;margin-bottom:8px;}
+    .stat span{font-size:28px;font-weight:900;}
+    .panel{
+      background:#fff;border:1px solid #e2e8f0;border-radius:22px;padding:18px;
+      box-shadow:0 8px 24px rgba(15,23,42,.05);
+      margin-bottom:16px;
+    }
+    .panel h2{margin:0 0 14px;font-size:22px;letter-spacing:-0.03em;}
+    table{width:100%;border-collapse:collapse;}
+    th, td{
+      padding:12px 10px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:14px;vertical-align:top;
+    }
+    th{font-size:13px;color:#64748b;}
+    .chip{
+      display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;font-weight:900;font-size:12px;
+    }
+    .fortune{background:#eff6ff;color:#1d4ed8;}
+    .voucher{background:#fff7ed;color:#c2410c;}
+    .coffee{background:#ecfdf5;color:#047857;}
+    .pending{color:#b45309;font-weight:800;}
+    .done{color:#047857;font-weight:800;}
+    form.inline{display:inline;}
+    @media (max-width:1100px){.stats{grid-template-columns:repeat(3,minmax(0,1fr));}}
+    @media (max-width:760px){
+      .stats{grid-template-columns:repeat(2,minmax(0,1fr));}
+      table{display:block;overflow:auto;white-space:nowrap;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>출근 행운 룰렛 관리자</h1>
+        <div class="sub">오늘 기준: {{ today }}</div>
+      </div>
+      <div class="actions">
+        <a class="btn btn-secondary" href="/admin/export.csv">CSV 내보내기</a>
+        <form method="post" action="/admin/logout" class="inline">
+          <button class="btn btn-primary" type="submit">로그아웃</button>
+        </form>
+      </div>
+    </div>
+
+    <section class="stats">
+      <div class="stat"><strong>오늘 참여 수</strong><span>{{ stats.today_total }}</span></div>
+      <div class="stat"><strong>오늘 운세</strong><span>{{ stats.today_fortune }}</span></div>
+      <div class="stat"><strong>오늘 상품권</strong><span>{{ stats.today_voucher }}</span></div>
+      <div class="stat"><strong>오늘 커피</strong><span>{{ stats.today_coffee }}</span></div>
+      <div class="stat"><strong>미수령 경품</strong><span>{{ stats.pending_claims }}</span></div>
+      <div class="stat"><strong>누적 참여 수</strong><span>{{ stats.all_total }}</span></div>
+    </section>
+
+    <section class="panel">
+      <h2>최근 참여 내역</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>사번</th>
+            <th>일자</th>
+            <th>결과</th>
+            <th>메시지</th>
+            <th>수령코드</th>
+            <th>파워</th>
+            <th>참여시각</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in recent_rows %}
+          <tr>
+            <td>{{ row["id"] }}</td>
+            <td>{{ row["employee_id"] }}</td>
+            <td>{{ row["spin_date"] }}</td>
+            <td>
+              <span class="chip {{ row['result_type'] }}">
+                {% if row["result_type"] == "fortune" %}운세{% elif row["result_type"] == "voucher" %}상품권{% else %}커피{% endif %}
+              </span>
+            </td>
+            <td>{{ row["message"] }}</td>
+            <td>{{ row["claim_code"] or "-" }}</td>
+            <td>{{ row["power"] }}%</td>
+            <td>{{ row["played_at"] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>당첨자 관리</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>사번</th>
+            <th>경품</th>
+            <th>수령코드</th>
+            <th>상태</th>
+            <th>참여시각</th>
+            <th>처리</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in winners %}
+          <tr>
+            <td>{{ row["id"] }}</td>
+            <td>{{ row["employee_id"] }}</td>
+            <td>
+              <span class="chip {{ row['result_type'] }}">
+                {% if row["result_type"] == "voucher" %}상품권{% else %}커피{% endif %}
+              </span>
+            </td>
+            <td>{{ row["claim_code"] }}</td>
+            <td>
+              {% if row["redeemed"] %}
+                <span class="done">수령 완료</span>
+              {% else %}
+                <span class="pending">미수령</span>
+              {% endif %}
+            </td>
+            <td>{{ row["played_at"] }}</td>
+            <td>
+              {% if not row["redeemed"] %}
+              <form method="post" action="/admin/redeem/{{ row['id'] }}" class="inline">
+                <button class="btn btn-secondary" type="submit">수령 처리</button>
+              </form>
+              {% else %}
+              -
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>
