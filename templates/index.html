@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>출근 행운 룰렛</title>
+  <style>
+    :root{
+      --bg1:#0f172a;
+      --bg2:#1e293b;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --line:#e2e8f0;
+      --accent:#2563eb;
+      --accent2:#7c3aed;
+      --danger:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,sans-serif;
+      color:#fff;
+      background:linear-gradient(135deg,var(--bg1),var(--bg2));
+      min-height:100vh;
+    }
+    .wrap{max-width:1180px;margin:0 auto;padding:24px 16px 48px;}
+    .grid{display:grid;grid-template-columns:1.08fr .92fr;gap:20px;align-items:start;}
+    .card{
+      background:rgba(255,255,255,.985);
+      color:var(--text);
+      border-radius:26px;
+      box-shadow:0 18px 48px rgba(0,0,0,.24);
+      border:1px solid rgba(255,255,255,.18);
+      padding:24px;
+    }
+    .wheel-layout{display:grid;grid-template-columns:minmax(0,1fr) 124px;gap:18px;align-items:center;}
+    .wheel-box{position:relative;width:max-content;margin:0 auto;}
+    .legend{
+      position:absolute;right:-6px;bottom:6px;background:rgba(255,255,255,.95);
+      border:1px solid #e2e8f0;border-radius:16px;padding:10px 12px;
+      box-shadow:0 10px 24px rgba(15,23,42,.12);z-index:12;min-width:142px;
+    }
+    .legend-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:#334155;line-height:1.5;}
+    .legend-row + .legend-row{margin-top:6px;}
+    .legend-chip{width:14px;height:14px;border-radius:999px;flex:0 0 14px;border:1px solid rgba(15,23,42,.08);}
+    .legend-chip.rainbow{background:linear-gradient(135deg,#ff3b30,#ff9500,#ffcc00,#34c759,#007aff,#af52de);}
+    .legend-chip.yellow{background:#facc15;}
+    .legend-chip.sky{background:#38bdf8;}
+    .wheel-outer{
+      position:relative;width:min(78vw,480px);height:min(78vw,480px);margin:0 auto;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .pointer{
+      position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+      width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;
+      border-bottom:36px solid var(--danger);z-index:8;filter:drop-shadow(0 6px 10px rgba(0,0,0,.24));
+    }
+    .wheel-stage{
+      position:relative;width:100%;height:100%;transform:rotate(0deg);transform-origin:center center;
+      transition:transform 2.6s cubic-bezier(.16,.68,.14,1);
+    }
+    .wheel{
+      position:absolute;inset:0;border-radius:50%;border:12px solid #fff;
+      box-shadow:inset 0 0 0 8px rgba(255,255,255,.18), 0 16px 34px rgba(0,0,0,.22);
+      overflow:hidden;background:#60a5fa;
+    }
+    .wheel::before{
+      content:"";position:absolute;inset:0;border-radius:50%;
+      background:
+        radial-gradient(circle at center, transparent 0 112px, rgba(255,255,255,.08) 112px 100%),
+        repeating-conic-gradient(from 0deg, rgba(255,255,255,.28) 0deg 1deg, transparent 1deg 15deg);
+      z-index:1;pointer-events:none;
+    }
+    .wheel::after{
+      content:"";position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);
+      width:124px;height:124px;border-radius:50%;background:#fff;border:8px solid #e2e8f0;
+      box-shadow:0 6px 20px rgba(0,0,0,.16);z-index:4;
+    }
+    .labels{position:absolute;inset:0;pointer-events:none;z-index:3;}
+    .control{margin-top:16px;display:flex;flex-direction:column;gap:12px;}
+    .field{display:flex;flex-direction:column;gap:8px;}
+    .field label{font-size:14px;font-weight:800;color:#0f172a;}
+    .field input{
+      width:100%;padding:14px 16px;border-radius:16px;border:1px solid var(--line);
+      outline:none;font-size:16px;transition:.18s ease;
+    }
+    .field input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(37,99,235,.12);}
+    .lever-panel{
+      background:#f8fafc;border:1px solid #e2e8f0;border-radius:22px;padding:12px;
+      display:flex;flex-direction:column;align-items:center;gap:12px;user-select:none;
+    }
+    .lever-guide{text-align:center;font-size:13px;line-height:1.5;color:#475569;font-weight:700;}
+    .track-wrap{position:relative;width:64px;height:286px;display:flex;justify-content:center;}
+    .track{
+      position:relative;width:28px;height:100%;border-radius:999px;background:linear-gradient(180deg,#e2e8f0,#cbd5e1);
+      box-shadow:inset 0 4px 12px rgba(15,23,42,.14);overflow:hidden;touch-action:none;
+    }
+    .fill{
+      position:absolute;left:0;right:0;bottom:0;height:0%;
+      background:linear-gradient(180deg,#38bdf8,#2563eb 55%,#7c3aed);transition:height .08s linear;
+    }
+    .ticks{
+      position:absolute;inset:10px 0 10px 0;pointer-events:none;
+      background:repeating-linear-gradient(to top, transparent 0 18px, rgba(255,255,255,.65) 18px 20px);
+      opacity:.65;mix-blend-mode:screen;
+    }
+    .knob{
+      position:absolute;left:50%;width:56px;height:56px;border-radius:50%;transform:translate(-50%, 0);
+      background:radial-gradient(circle at 35% 30%, #fff 0 18%, #f8fafc 18% 24%, #64748b 24% 60%, #334155 60% 100%);
+      border:4px solid #fff;box-shadow:0 8px 18px rgba(0,0,0,.28);cursor:grab;touch-action:none;
+    }
+    .knob:active{cursor:grabbing}
+    .power-value{
+      min-width:78px;text-align:center;padding:8px 10px;border-radius:999px;
+      background:#eff6ff;color:#1d4ed8;font-weight:900;font-size:16px;
+    }
+    .mini-note{text-align:center;font-size:12px;line-height:1.5;color:#64748b;font-weight:700;}
+    .btn{border:none;padding:14px 18px;border-radius:16px;font-size:15px;font-weight:900;cursor:pointer;transition:.18s ease;}
+    .btn:hover{transform:translateY(-1px)}
+    .btn-secondary{background:#e2e8f0;color:#0f172a;}
+    .status{
+      padding:12px 14px;border-radius:16px;background:#eff6ff;color:#1d4ed8;font-size:14px;
+      font-weight:800;min-height:50px;line-height:1.55;
+    }
+    .result{display:flex;flex-direction:column;gap:14px;}
+    .chip{display:inline-flex;align-items:center;width:max-content;padding:8px 12px;border-radius:999px;font-size:13px;font-weight:900;}
+    .fortune{background:#eff6ff;color:#1d4ed8}
+    .voucher{background:#fff7ed;color:#c2410c}
+    .coffee{background:#ecfdf5;color:#047857}
+    .result h2{margin:0;font-size:28px;line-height:1.2;letter-spacing:-0.03em;}
+    .msg{margin:0;color:#334155;font-size:16px;line-height:1.68;}
+    .claim{
+      background:#f8fafc;border:1px dashed #94a3b8;border-radius:16px;padding:14px;font-weight:800;color:#0f172a;
+    }
+    .small{font-size:13px;color:#64748b;line-height:1.6;}
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+    .meta .box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px;}
+    .meta .box strong{display:block;font-size:13px;color:#475569;margin-bottom:6px;}
+    .meta .box span{font-size:15px;font-weight:900;color:#0f172a;}
+    .footer-note{margin-top:14px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:13px;color:#64748b;line-height:1.65;}
+    .list{margin:12px 0 0;padding-left:18px;color:#475569;line-height:1.7;font-size:14px;}
+    .confetti{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:40;}
+    .confetti i{
+      position:absolute;width:10px;height:16px;top:-30px;opacity:.95;border-radius:2px;animation:drop linear forwards;
+    }
+    @keyframes drop{to{transform:translateY(110vh) rotate(720deg);}}
+    @media (max-width:960px){
+      .grid{grid-template-columns:1fr}
+      .wheel-layout{grid-template-columns:1fr}
+      .wheel-outer{width:min(88vw,460px);height:min(88vw,460px);}
+      .lever-panel{width:100%;flex-direction:row;justify-content:center;align-items:center;gap:16px;}
+      .track-wrap{width:286px;height:72px;}
+      .track{width:100%;height:28px;}
+      .fill{height:100%;width:0%;right:auto;top:0;}
+      .ticks{
+        inset:0 10px 0 10px;
+        background:repeating-linear-gradient(to right, transparent 0 18px, rgba(255,255,255,.65) 18px 20px);
+      }
+      .knob{top:50%;left:0;transform:translate(0,-50%);}
+      .meta{grid-template-columns:1fr}
+      .legend{position:static;margin-top:12px;width:fit-content;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="grid">
+      <section class="card">
+        <div class="wheel-layout">
+          <div class="wheel-box">
+            <div class="wheel-outer">
+              <div class="pointer"></div>
+              <div id="wheelStage" class="wheel-stage">
+                <div id="wheel" class="wheel"></div>
+                <div id="labels" class="labels"></div>
+              </div>
+            </div>
+            <div class="legend">
+              <div class="legend-row"><span class="legend-chip rainbow"></span><span>무지개: 커피</span></div>
+              <div class="legend-row"><span class="legend-chip yellow"></span><span>노란색: 3000 Will</span></div>
+              <div class="legend-row"><span class="legend-chip sky"></span><span>하늘색: 운세</span></div>
+            </div>
+          </div>
+
+          <div class="lever-panel">
+            <div class="lever-guide">레버를 아래로<br>당겼다가 놓으면<br>회전합니다</div>
+            <div class="track-wrap">
+              <div id="powerTrack" class="track">
+                <div id="powerFill" class="fill"></div>
+                <div class="ticks"></div>
+              </div>
+              <div id="leverKnob" class="knob"></div>
+            </div>
+            <div>
+              <div id="powerValue" class="power-value">0%</div>
+              <div class="mini-note">세게 당길수록<br>더 오래 돌아갑니다</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control">
+          <div class="field">
+            <label for="employeeId">회사 사번 입력</label>
+            <input id="employeeId" type="text" placeholder="예: 202600123" maxlength="20" />
+          </div>
+          <div id="status" class="status">사번 입력 후 레버를 당겨 보세요. 같은 사번은 하루 1회만 참여할 수 있습니다.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="result">
+          <div id="resultChip" class="chip fortune">대기 중</div>
+          <h2 id="resultTitle">아직 결과가 없습니다</h2>
+          <p id="resultMessage" class="msg">이제 결과는 서버에 저장됩니다. 브라우저를 바꿔도, 같은 사번은 당일 1회만 참여하도록 관리할 수 있습니다.</p>
+          <div id="claimBox" class="claim" style="display:none;"></div>
+
+          <div class="meta">
+            <div class="box">
+              <strong>참여 규칙</strong>
+              <span>사번 기준 하루 1회</span>
+            </div>
+            <div class="box">
+              <strong>관리 방식</strong>
+              <span>서버 기록 저장</span>
+            </div>
+          </div>
+
+          <div class="footer-note">
+            오늘 기준: <strong>{{ today }}</strong><br>
+            실제 운영 시에는 사번 직접 입력 대신 사내 SSO 또는 사번 검증 API를 붙이면 더 안전합니다.
+            <ul class="list">
+              <li>운영 서버가 참여 기록과 당첨 이력을 저장</li>
+              <li>관리자 페이지에서 당첨자 조회와 수령 처리 가능</li>
+              <li>CSV 내보내기로 정산 및 지급 관리 가능</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="confettiLayer" class="confetti"></div>
+
+  <script>
+    const wheelStage = document.getElementById("wheelStage");
+    const wheel = document.getElementById("wheel");
+    const labels = document.getElementById("labels");
+    const employeeInput = document.getElementById("employeeId");
+    const statusBox = document.getElementById("status");
+    const resultChip = document.getElementById("resultChip");
+    const resultTitle = document.getElementById("resultTitle");
+    const resultMessage = document.getElementById("resultMessage");
+    const claimBox = document.getElementById("claimBox");
+    const confettiLayer = document.getElementById("confettiLayer");
+    const powerTrack = document.getElementById("powerTrack");
+    const powerFill = document.getElementById("powerFill");
+    const powerValue = document.getElementById("powerValue");
+    const leverKnob = document.getElementById("leverKnob");
+
+    let isSpinning = false;
+    let currentRotation = 0;
+    let currentPower = 0;
+    let dragActive = false;
+
+    const segments = [
+      { type:"fortune", color:"#38bdf8" },
+      { type:"voucher", color:"#facc15" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"coffee",  color:"#ff3b30" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"voucher", color:"#facc15" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"coffee",  color:"#34c759" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"voucher", color:"#facc15" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" },
+      { type:"fortune", color:"#38bdf8" }
+    ];
+    const SEG_ANGLE = 360 / segments.length;
+
+    function isMobileLayout() {
+      return window.innerWidth <= 960;
+    }
+
+    function enrichedSegments() {
+      return segments.map((seg, idx) => {
+        const startDeg = idx * SEG_ANGLE;
+        const endDeg = startDeg + SEG_ANGLE;
+        return { ...seg, index: idx, startDeg, endDeg };
+      });
+    }
+
+    function renderWheel() {
+      const gradient = enrichedSegments()
+        .map(seg => {
+          if (seg.type === "coffee") {
+            const inner1 = seg.startDeg;
+            const inner2 = seg.startDeg + SEG_ANGLE * 0.18;
+            const inner3 = seg.startDeg + SEG_ANGLE * 0.36;
+            const inner4 = seg.startDeg + SEG_ANGLE * 0.54;
+            const inner5 = seg.startDeg + SEG_ANGLE * 0.72;
+            const inner6 = seg.endDeg;
+            return [
+              `#ff3b30 ${inner1}deg ${inner2}deg`,
+              `#ff9500 ${inner2}deg ${inner3}deg`,
+              `#ffcc00 ${inner3}deg ${inner4}deg`,
+              `#34c759 ${inner4}deg ${inner5}deg`,
+              `#007aff ${inner5}deg ${inner6 - SEG_ANGLE * 0.08}deg`,
+              `#af52de ${inner6 - SEG_ANGLE * 0.08}deg ${inner6}deg`
+            ].join(", ");
+          }
+          return `${seg.color} ${seg.startDeg}deg ${seg.endDeg}deg`;
+        })
+        .join(", ");
+      wheel.style.background = `conic-gradient(${gradient})`;
+    }
+
+    function renderLabels() {
+      labels.innerHTML = "";
+    }
+
+    function setResultUI(result) {
+      const type = result.result_type;
+      if (type === "fortune") {
+        resultChip.className = "chip fortune";
+        resultChip.textContent = "오늘의 운세";
+        resultTitle.textContent = result.title;
+        resultMessage.textContent = result.message;
+        claimBox.style.display = "none";
+        claimBox.innerHTML = "";
+      } else if (type === "voucher") {
+        resultChip.className = "chip voucher";
+        resultChip.textContent = "3000 Will 당첨";
+        resultTitle.textContent = result.title;
+        resultMessage.textContent = result.message;
+        claimBox.style.display = "block";
+        claimBox.innerHTML = `수령 확인 코드: <strong>${result.claim_code}</strong><br><span class="small">관리자 페이지에서 이 코드를 기준으로 수령 처리할 수 있습니다.</span>`;
+      } else {
+        resultChip.className = "chip coffee";
+        resultChip.textContent = "커피 기프티콘 당첨";
+        resultTitle.textContent = result.title;
+        resultMessage.textContent = result.message;
+        claimBox.style.display = "block";
+        claimBox.innerHTML = `수령 확인 코드: <strong>${result.claim_code}</strong><br><span class="small">관리자 페이지에서 이 코드를 기준으로 수령 처리할 수 있습니다.</span>`;
+      }
+    }
+
+    function launchConfetti() {
+      confettiLayer.innerHTML = "";
+      const count = 72;
+      const palette = ["#60a5fa","#f472b6","#34d399","#fbbf24","#a78bfa","#fb7185"];
+      for (let i = 0; i < count; i++) {
+        const piece = document.createElement("i");
+        piece.style.left = Math.random() * 100 + "vw";
+        piece.style.background = palette[Math.floor(Math.random() * palette.length)];
+        piece.style.animationDuration = (2.3 + Math.random() * 2.2) + "s";
+        piece.style.animationDelay = (Math.random() * .35) + "s";
+        piece.style.transform = `translateY(0) rotate(${Math.random()*180}deg)`;
+        confettiLayer.appendChild(piece);
+      }
+      setTimeout(() => confettiLayer.innerHTML = "", 5200);
+    }
+
+    function segmentIndexesByType(type) {
+      const arr = [];
+      segments.forEach((seg, idx) => {
+        if (seg.type === type) arr.push(idx);
+      });
+      return arr;
+    }
+
+    function spinToType(type, powerPercent) {
+      const indexes = segmentIndexesByType(type);
+      const idx = indexes[Math.floor(Math.random() * indexes.length)];
+      const seg = enrichedSegments()[idx];
+
+      const safeMargin = Math.min(3.2, SEG_ANGLE * 0.2);
+      const targetAngle = seg.startDeg + safeMargin + Math.random() * (SEG_ANGLE - safeMargin * 2);
+
+      const desiredNormalizedRotation = (360 - targetAngle) % 360;
+      const currentNormalizedRotation = ((currentRotation % 360) + 360) % 360;
+      let delta = (desiredNormalizedRotation - currentNormalizedRotation + 360) % 360;
+
+      const p = Math.max(0, Math.min(100, powerPercent)) / 100;
+      const minForward = 20 + p * 180;
+      if (delta < minForward) delta += 360;
+
+      const baseTurns = 0.18 + 4.15 * Math.pow(p, 1.95);
+      const jitterTurns = (0.05 + 0.22 * p) * Math.random();
+      const extraTurns = 360 * (baseTurns + jitterTurns);
+      const duration = 1.05 + 3.85 * Math.pow(p, 1.22);
+
+      wheelStage.style.transitionDuration = `${duration.toFixed(2)}s`;
+      currentRotation += extraTurns + delta;
+      wheelStage.style.transform = `rotate(${currentRotation}deg)`;
+      return duration;
+    }
+
+    function setPower(percent) {
+      currentPower = Math.max(0, Math.min(100, percent));
+      powerValue.textContent = `${Math.round(currentPower)}%`;
+      if (isMobileLayout()) {
+        powerFill.style.width = `${currentPower}%`;
+      } else {
+        powerFill.style.height = `${currentPower}%`;
+      }
+      placeKnob();
+    }
+
+    function placeKnob() {
+      const trackRect = powerTrack.getBoundingClientRect();
+      const knobRect = leverKnob.getBoundingClientRect();
+
+      if (isMobileLayout()) {
+        const maxX = trackRect.width - knobRect.width;
+        const x = (currentPower / 100) * maxX;
+        leverKnob.style.left = `${trackRect.left + x - powerTrack.parentElement.getBoundingClientRect().left}px`;
+        leverKnob.style.top = `${trackRect.top + (trackRect.height - knobRect.height)/2 - powerTrack.parentElement.getBoundingClientRect().top}px`;
+      } else {
+        const maxY = trackRect.height - knobRect.height;
+        const y = (currentPower / 100) * maxY;
+        leverKnob.style.left = `${trackRect.left + (trackRect.width - knobRect.width)/2 - powerTrack.parentElement.getBoundingClientRect().left}px`;
+        leverKnob.style.top = `${trackRect.top + y - powerTrack.parentElement.getBoundingClientRect().top}px`;
+      }
+    }
+
+    function pointerToPower(clientX, clientY) {
+      const trackRect = powerTrack.getBoundingClientRect();
+      const knobRect = leverKnob.getBoundingClientRect();
+      if (isMobileLayout()) {
+        const usable = trackRect.width - knobRect.width;
+        const offset = clientX - trackRect.left - knobRect.width / 2;
+        return (offset / usable) * 100;
+      } else {
+        const usable = trackRect.height - knobRect.height;
+        const offset = clientY - trackRect.top - knobRect.height / 2;
+        return (offset / usable) * 100;
+      }
+    }
+
+    function resetLever(animated = true) {
+      if (animated) leverKnob.style.transition = "all .35s cubic-bezier(.2,.8,.2,1)";
+      setPower(0);
+      setTimeout(() => { leverKnob.style.transition = ""; }, 360);
+    }
+
+    async function checkEmployee() {
+      const employeeId = employeeInput.value.trim();
+      if (!employeeId) return;
+      const res = await fetch(`/api/check?employee_id=${encodeURIComponent(employeeId)}`);
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        statusBox.textContent = "서버 응답 형식이 올바르지 않습니다. 배포 설정을 확인해 주세요.";
+        return;
+      }
+      const data = await res.json();
+      if (data.ok && data.already_played) {
+        setResultUI(data.result);
+        statusBox.textContent = data.message;
+      } else if (data.ok) {
+        statusBox.textContent = data.message;
+      }
+    }
+
+    async function beginSpin(powerPercent) {
+      const employeeId = employeeInput.value.trim();
+      if (!employeeId) {
+        statusBox.textContent = "사번을 먼저 입력해 주세요.";
+        employeeInput.focus();
+        return;
+      }
+      if (isSpinning) {
+        statusBox.textContent = "이미 룰렛이 돌아가는 중입니다.";
+        return;
+      }
+      if (powerPercent < 12) {
+        statusBox.textContent = "조금 더 세게 당겨주세요.";
+        return;
+      }
+
+      isSpinning = true;
+      statusBox.textContent = "레버 발사! 룰렛이 돌아가는 중입니다.";
+      resultChip.className = "chip fortune";
+      resultChip.textContent = "확인 중";
+      resultTitle.textContent = "서버에서 결과를 가져오는 중...";
+      resultMessage.textContent = "잠시만 기다려 주세요.";
+      claimBox.style.display = "none";
+      claimBox.innerHTML = "";
+
+      try {
+        const res = await fetch("/api/spin", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ employee_id: employeeId, power: Math.round(powerPercent) })
+        });
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          const raw = await res.text();
+          throw new Error("서버가 JSON 대신 오류 페이지를 반환했습니다. 배포 설정 또는 DB 초기화를 확인해 주세요.");
+        }
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.message || "오류가 발생했습니다.");
+        }
+
+        const duration = spinToType(data.result.result_type, powerPercent);
+        setTimeout(() => {
+          setResultUI(data.result);
+          statusBox.textContent = data.message;
+          if (data.result.result_type !== "fortune") launchConfetti();
+          isSpinning = false;
+        }, duration * 1000 + 120);
+
+      } catch (err) {
+        isSpinning = false;
+        statusBox.textContent = err.message || "서버 오류가 발생했습니다.";
+        resultChip.className = "chip fortune";
+        resultChip.textContent = "오류";
+        resultTitle.textContent = "문제가 발생했습니다";
+        resultMessage.textContent = "서버 연결 또는 설정을 확인해 주세요.";
+      }
+    }
+
+    function onPointerDown(e) {
+      if (isSpinning) return;
+      dragActive = true;
+      leverKnob.setPointerCapture?.(e.pointerId);
+      leverKnob.style.transition = "";
+      setPower(pointerToPower(e.clientX, e.clientY));
+      statusBox.textContent = "당기는 중... 손을 놓으면 룰렛이 회전합니다.";
+      e.preventDefault();
+    }
+
+    function onPointerMove(e) {
+      if (!dragActive) return;
+      setPower(pointerToPower(e.clientX, e.clientY));
+      e.preventDefault();
+    }
+
+    function onPointerUp() {
+      if (!dragActive) return;
+      dragActive = false;
+      const powerAtRelease = currentPower;
+      resetLever(true);
+      beginSpin(powerAtRelease);
+    }
+
+    function setupLever() {
+      leverKnob.addEventListener("pointerdown", onPointerDown);
+      powerTrack.addEventListener("pointerdown", onPointerDown);
+      window.addEventListener("pointermove", onPointerMove, { passive:false });
+      window.addEventListener("pointerup", onPointerUp);
+      window.addEventListener("pointercancel", onPointerUp);
+      window.addEventListener("resize", () => {
+        setTimeout(placeKnob, 50);
+        if (isMobileLayout()) {
+          powerFill.style.height = "100%";
+          powerFill.style.width = `${currentPower}%`;
+        } else {
+          powerFill.style.width = "100%";
+          powerFill.style.height = `${currentPower}%`;
+        }
+      });
+      setTimeout(placeKnob, 80);
+    }
+
+    employeeInput.addEventListener("change", checkEmployee);
+
+    renderWheel();
+    renderLabels();
+    setupLever();
+    resetLever(false);
+  </script>
+</body>
+</html>
